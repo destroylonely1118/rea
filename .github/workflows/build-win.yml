@@ -1,0 +1,39 @@
+name: build-windows
+
+# 目的：在 Linux runner 上交叉编译出 Windows 版 rea.exe（本机没有 MSVC / Rust 工具链）
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust with windows-gnu target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+
+      - name: Install mingw-w64 linker
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64
+
+      - name: Build rea for Windows
+        run: |
+          cargo build --release -p rea --target x86_64-pc-windows-gnu
+          ls -la target/x86_64-pc-windows-gnu/release/ | head -20
+
+      - name: Publish release with binary
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: win-build-${{ github.run_number }}
+          name: Windows build ${{ github.run_number }}
+          body: Auto-built rea.exe for Windows (x86_64-pc-windows-gnu) from mytechnotalent/rea
+          files: target/x86_64-pc-windows-gnu/release/rea.exe
